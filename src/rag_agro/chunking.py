@@ -46,7 +46,15 @@ def make_chunks(pages: list[dict], chunk_size: int, overlap: int) -> list[Chunk]
                 Chunk(
                     id=chunk_id,
                     text=piece,
-                    metadata={"source": page["source"], "page": page["page"]},
+                    metadata={
+                        "source": page["source"],
+                        "page": page["page"],
+                        **{
+                            key: value
+                            for key, value in page.items()
+                            if key not in {"text", "source", "page"}
+                        },
+                    },
                 )
             )
     return result

@@ -23,7 +23,15 @@ def get_collection():
 
 
 def add_chunks(chunks: list[Chunk], batch_size: int = 100) -> None:
+    """Insere ou atualiza chunks e remove IDs antigos das fontes reindexadas."""
+    if not chunks:
+        return
     collection = get_collection()
+    ids_by_source: dict[str, set[str]] = {}
+    for chunk in chunks:
+        source = str(chunk.metadata["source"])
+        ids_by_source.setdefault(source, set()).add(chunk.id)
+
     for i in range(0, len(chunks), batch_size):
         batch = chunks[i : i + batch_size]
         collection.upsert(
@@ -31,6 +39,12 @@ def add_chunks(chunks: list[Chunk], batch_size: int = 100) -> None:
             documents=[c.text for c in batch],
             metadatas=[c.metadata for c in batch],
         )
+
+    for source, current_ids in ids_by_source.items():
+        existing = collection.get(where={"source": source}, include=["metadatas"])
+        stale_ids = set(existing.get("ids") or []) - current_ids
+        if stale_ids:
+            collection.delete(ids=sorted(stale_ids))
 
 
 def search(query: str, k: int | None = None) -> list[RetrievedChunk]:

@@ -22,6 +22,9 @@ class Settings:
     chunk_size: int = int(os.getenv("CHUNK_SIZE", "800"))
     chunk_overlap: int = int(os.getenv("CHUNK_OVERLAP", "120"))
     top_k: int = int(os.getenv("TOP_K", "4"))
+    cleaning_enabled: bool = os.getenv("CLEANING_ENABLED", "false").lower() in {
+        "1", "true", "yes", "on"
+    }
 
 
 settings = Settings()

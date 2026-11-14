@@ -8,6 +8,7 @@ def test_indexacao_e_busca_usam_mesmo_embedding_e_upsert(monkeypatch):
     embedding_models = []
     upserts = []
     queries = []
+    deletions = []
 
     class FakeCollection:
         def upsert(self, **kwargs):
@@ -20,6 +21,20 @@ def test_indexacao_e_busca_usam_mesmo_embedding_e_upsert(monkeypatch):
                 "metadatas": [[{"source": "fonte.pdf", "page": 1}]],
                 "distances": [[0.1]],
             }
+
+        def get(self, where, include):
+            assert where == {"source": "fonte.pdf"}
+            assert include == ["metadatas"]
+            return {
+                "ids": ["stable-id", "stale-id"],
+                "metadatas": [
+                    {"source": "fonte.pdf", "page": 1},
+                    {"source": "fonte.pdf", "page": 2},
+                ],
+            }
+
+        def delete(self, ids):
+            deletions.extend(ids)
 
     class FakeClient:
         def get_or_create_collection(self, **_kwargs):
@@ -53,6 +68,7 @@ def test_indexacao_e_busca_usam_mesmo_embedding_e_upsert(monkeypatch):
 
     assert embedding_models == ["multilingual-test-model", "multilingual-test-model"]
     assert upserts[0]["ids"] == ["stable-id"]
+    assert deletions == ["stale-id"]
     assert queries[0]["query_texts"] == ["consulta"]
     assert len(found) == 1
     assert isinstance(found[0], RetrievedChunk)

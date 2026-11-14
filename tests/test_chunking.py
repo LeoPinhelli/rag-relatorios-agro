@@ -37,6 +37,25 @@ def test_metadados_preservados():
     assert all(isinstance(chunk.metadata["page"], int) for chunk in chunks)
 
 
+def test_preserva_metadados_documentais_derivados():
+    pages = [
+        {
+            "text": "Estimativa de soja.",
+            "source": "conab_2026.pdf",
+            "page": 1,
+            "doc_type": "conab",
+            "year": 2026,
+        }
+    ]
+    chunk = make_chunks(pages, 200, 20)[0]
+    assert chunk.metadata == {
+        "source": "conab_2026.pdf",
+        "page": 1,
+        "doc_type": "conab",
+        "year": 2026,
+    }
+
+
 def test_overlap_preserva_o_fim_do_trecho_anterior():
     chunks = split_text("0123456789ABCDEFGHIJ", chunk_size=10, overlap=3)
     assert chunks[1].startswith(chunks[0][-3:])

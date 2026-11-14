@@ -17,21 +17,22 @@ RAG em Python que responde perguntas sobre relatórios públicos do mercado de g
 | `src/rag_agro/config.py` | Lê `.env` em `Settings` imutável | dotenv |
 | `src/rag_agro/schemas.py` | `Chunk`, `RetrievedChunk`, `Answer` | — |
 | `src/rag_agro/loaders.py` | PDF → `[{text, source, page}]` | pypdf |
-| `src/rag_agro/chunking.py` | Divide texto com overlap; IDs determinísticos | schemas |
+| `src/rag_agro/cleaning.py` | Limpa páginas e deriva metadados do nome do arquivo | — |
+| `src/rag_agro/chunking.py` | Divide texto com overlap; IDs determinísticos e metadados | schemas |
 | `src/rag_agro/vectorstore.py` | Coleção Chroma, `add_chunks`, `search` | chromadb, sentence-transformers |
 | `src/rag_agro/generator.py` | `SYSTEM_PROMPT`, `build_context`, `generate` | anthropic |
 | `src/rag_agro/pipeline.py` | `ask(question)` → `Answer` | vectorstore, generator |
-| `src/rag_agro/ingest.py` | CLI: `python -m rag_agro.ingest <pasta>` | loaders, chunking, vectorstore |
+| `src/rag_agro/ingest.py` | CLI: `python -m rag_agro.ingest <pasta>` | loaders, cleaning, chunking, vectorstore |
 | `app/streamlit_app.py` | Interface de chat | pipeline |
 | `evals/run_eval.py` | Hit rate@k, MRR e JSON de resultados | vectorstore |
 
-Fluxo de dados: `loaders → chunking → vectorstore` (indexação) e `pipeline → vectorstore → generator` (consulta).
+Fluxo de dados: `loaders → cleaning → chunking → vectorstore` (indexação) e `pipeline → vectorstore → generator` (consulta).
 
 ## Comandos
 
 ```bash
 make install   # pip install -e ".[dev]"
-make ingest    # indexa data/raw/*.pdf
+make ingest    # indexa PDFs e CSVs em data/raw/
 make app       # abre o chat em localhost:8501
 make eval      # hit rate@k + MRR; salva JSON em evals/results/
 make test      # pytest
@@ -43,6 +44,7 @@ make lint      # ruff
 Tudo em `.env` (modelo em `.env.example`). Nunca coloque valores fixos no código.
 Variáveis: `ANTHROPIC_API_KEY`, `LLM_MODEL`, `EMBEDDING_MODEL`, `CHROMA_DIR`,
 `COLLECTION_NAME`, `CHUNK_SIZE`, `CHUNK_OVERLAP`, `TOP_K`.
+`CLEANING_ENABLED` controla a limpeza textual (padrão seguro: `false`).
 
 ## Regras obrigatórias
 
@@ -50,7 +52,9 @@ Variáveis: `ANTHROPIC_API_KEY`, `LLM_MODEL`, `EMBEDDING_MODEL`, `CHROMA_DIR`,
 - **Toda configuração nova vai em `config.py` e `.env.example`.**
 - **Todo chunk carrega `source` e `page`.** Sem isso, a citação quebra.
 - **IDs de chunk são determinísticos.** Use hash de `source-page-índice`. Nunca `uuid4`.
+- **Metadados documentais são preservados.** Se inferidos, `doc_type` e `year` acompanham `source` e `page` até o Chroma.
 - **Use `upsert`, não `add`,** no Chroma. Reindexar não pode duplicar.
+- **Reindexação remove chunks obsoletos por fonte** depois do `upsert`, quando a quantidade de trechos muda.
 - **O prompt proíbe inventar.** Qualquer mudança em `SYSTEM_PROMPT` mantém: responder só com o contexto, citar `[arquivo, p. N]`, dizer "Não encontrei" quando faltar dado.
 - **Nunca faça commit de `.env`, `.chroma/` ou PDFs.**
 - **Type hints em toda função pública.** Docstring curta em português.
@@ -74,6 +78,12 @@ retorne `[{text, source, page}]`. Registre em `load_folder`.
 
 **Mudar chunk_size/overlap:** altere o `.env`, apague `.chroma/`, rode
 `make ingest` e `make eval`. Registre o resultado na tabela do README.
+
+**Ativar limpeza:** defina `CLEANING_ENABLED=true` no `.env`, reindexe o corpus
+e compare hit rate@k/MRR com os resultados anteriores. A limpeza de margens
+considera linhas curtas repetidas em pelo menos metade das páginas de um PDF.
+Mantenha-a desativada por padrão enquanto a avaliação do corpus não demonstrar
+que a qualidade se mantém ou melhora.
 
 **Busca híbrida ou reranking:** implemente em `vectorstore.py` (ou novo
 `retrieval.py`), mantendo o retorno `list[RetrievedChunk]`. Compare com `make eval`.

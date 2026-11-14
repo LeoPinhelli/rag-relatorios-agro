@@ -1,0 +1,97 @@
+{
+  "date": "2026-11-14",
+  "embedding_model": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+  "chunk_size": 800,
+  "chunk_overlap": 120,
+  "top_k": 4,
+  "questions": 3,
+  "hits": 3,
+  "hit_rate": 1.0,
+  "mrr": 0.8333333333333334,
+  "items": [
+    {
+      "question": "Quanto a Conab estima a produção brasileira de soja para a safra 2026/27 no 2º levantamento?",
+      "expected_source": "e-book_boletim-de-safras-2o-levantamento_2026.pdf",
+      "rank": 1,
+      "reciprocal_rank": 1.0,
+      "retrieved": [
+        {
+          "source": "e-book_boletim-de-safras-2o-levantamento_2026.pdf",
+          "page": 78,
+          "score": 0.837
+        },
+        {
+          "source": "e-book_boletim-de-safras-2o-levantamento_2026.pdf",
+          "page": 79,
+          "score": 0.836
+        },
+        {
+          "source": "e-book_boletim-de-safras-2o-levantamento_2026.pdf",
+          "page": 36,
+          "score": 0.822
+        },
+        {
+          "source": "e-book_boletim-de-safras-2o-levantamento_2026.pdf",
+          "page": 77,
+          "score": 0.813
+        }
+      ]
+    },
+    {
+      "question": "No segundo levantamento da Conab, qual é a área plantada de milho segunda safra em 2026/27?",
+      "expected_source": "e-book_boletim-de-safras-2o-levantamento_2026.pdf",
+      "rank": 1,
+      "reciprocal_rank": 1.0,
+      "retrieved": [
+        {
+          "source": "e-book_boletim-de-safras-2o-levantamento_2026.pdf",
+          "page": 57,
+          "score": 0.746
+        },
+        {
+          "source": "e-book_boletim-de-safras-2o-levantamento_2026.pdf",
+          "page": 60,
+          "score": 0.697
+        },
+        {
+          "source": "e-book_boletim-de-safras-2o-levantamento_2026.pdf",
+          "page": 64,
+          "score": 0.673
+        },
+        {
+          "source": "e-book_boletim-de-safras-2o-levantamento_2026.pdf",
+          "page": 65,
+          "score": 0.668
+        }
+      ]
+    },
+    {
+      "question": "Qual a estimativa de exportações de soja dos Estados Unidos no WASDE de novembro de 2026?",
+      "expected_source": "wasde1126.pdf",
+      "rank": 2,
+      "reciprocal_rank": 0.5,
+      "retrieved": [
+        {
+          "source": "wasde1126 (1).pdf",
+          "page": 24,
+          "score": 0.713
+        },
+        {
+          "source": "wasde1126.pdf",
+          "page": 24,
+          "score": 0.713
+        },
+        {
+          "source": "wasde1026.pdf",
+          "page": 24,
+          "score": 0.704
+        },
+        {
+          "source": "e-book_boletim-de-safras-2o-levantamento_2026.pdf",
+          "page": 79,
+          "score": 0.693
+        }
+      ]
+    }
+  ]
+}

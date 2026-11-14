@@ -31,6 +31,23 @@ exportação. As respostas comuns mostram apenas a resposta e suas fontes. Regis
 CSV são citados pelo número do registro; páginas PDF mantêm a citação por página.
 Arquivos exportados incluem a pergunta, resposta e evidências recuperadas.
 
+### Limpeza e metadados de documentos
+
+A limpeza do texto é opcional e vem desativada por padrão (`CLEANING_ENABLED=false`).
+Para testar, ative `CLEANING_ENABLED=true` no `.env` e reindexe com
+`python -m rag_agro.ingest data/raw`. A limpeza remove linhas curtas repetidas
+nas margens de pelo menos metade das páginas do mesmo PDF, recompõe palavras
+quebradas por hífen na quebra de linha e normaliza espaços. Registros CSV não
+passam pela regra de cabeçalho/rodapé.
+
+O estágio de limpeza também infere `doc_type` e `year` do nome dos arquivos:
+`conab` ou `boletim-de-safras` → `doc_type=conab`; `wasde` ou `wwcb` →
+`doc_type=usda`; `operaciones_informadas` → `doc_type=sio_granos`. Anos com
+quatro dígitos são reconhecidos em qualquer nome; padrões USDA como
+`wasde1126.pdf` e `wwcb4526.pdf` também inferem 2026 pelo sufixo `MMYY` ou
+`WWYY`. Para novos arquivos, prefira nomes com a fonte e o ano explícitos,
+como `conab_boletim_safras_2026.pdf` e `usda_wasde_2026-11.pdf`.
+
 ## Stack
 
 | Etapa | Ferramenta | Por quê |
@@ -119,6 +136,18 @@ Linha de base local da Fase 0 (14/11/2026):
 |---|---:|---:|---:|
 | chunk 800 / overlap 120; coleção local | 3 | 100% | 0,833 |
 
+Comparação da Fase 1 na mesma coleção e nas mesmas três perguntas:
+
+| Estado | Hit rate@4 | MRR | Resultado |
+|---|---:|---:|---|
+| Antes, texto original | 100% | 0,833 | `2026-11-14-before-cleaning.json` |
+| Depois, `CLEANING_ENABLED=true` | 66,7% | 0,667 | `2026-11-14-after-cleaning.json` |
+| Índice local restaurado com padrão `false` | 100% | 0,833 | `2026-11-14.json` |
+
+Com apenas três perguntas, a queda é um sinal para investigar, não prova geral de
+regressão. A limpeza permanece desativada por padrão; amplie o dataset de avaliação
+e investigue a recuperação do WASDE antes de ativá-la em produção.
+
 O dataset anterior apontava para `conab_levantamento.pdf` e `usda_wasde.pdf`,
 nomes ausentes em `data/raw/`, e marcou 0/3. Esse número não é comparável: as
 fontes esperadas foram corrigidas para os nomes reais, sem alterar o algoritmo
@@ -132,9 +161,10 @@ src/rag_agro/
   config.py       # configurações via .env
   schemas.py      # tipos compartilhados
   loaders.py      # 1. PDF -> páginas
-  chunking.py     # 2. páginas -> trechos
-  vectorstore.py  # 3. embeddings + ChromaDB
-  generator.py    # 4. prompt + LLM
+  cleaning.py     # 2. limpeza opcional + metadados documentais
+  chunking.py     # 3. páginas -> trechos
+  vectorstore.py  # 4. embeddings + ChromaDB
+  generator.py    # 5. prompt + LLM
   pipeline.py     # orquestra a consulta
   ingest.py       # CLI de indexação
 app/              # interface Streamlit
