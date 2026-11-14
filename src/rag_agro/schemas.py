@@ -19,7 +19,15 @@ class RetrievedChunk:
 
 
 @dataclass
+class WebSource:
+    title: str
+    url: str
+    accessed_at: str = ""
+
+
+@dataclass
 class Answer:
     text: str
     sources: list[RetrievedChunk]
     report_requested: bool = False
+    web_sources: list[WebSource] = field(default_factory=list)

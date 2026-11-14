@@ -1,12 +1,14 @@
 # 🌾 RAG Agro — Pergunte aos relatórios do mercado de grãos
 
+[![CI](https://github.com/LeoPinhelli/rag-relatorios-agro/actions/workflows/ci.yml/badge.svg)](https://github.com/LeoPinhelli/rag-relatorios-agro/actions/workflows/ci.yml)
+[![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![Licença MIT](https://img.shields.io/badge/licen%C3%A7a-MIT-green.svg)](LICENSE)
+
 Chat que responde perguntas sobre relatórios públicos de safra (Conab, USDA),
-**citando arquivo e página de cada resposta**.
+**citando arquivo e página ou registro de cada resposta**.
 
 > Problema: analistas gastam horas procurando números em PDFs de 50+ páginas.
 > Solução: pergunte em português e receba a resposta com a fonte.
-
-![demo](docs/demo.gif) <!-- grave um GIF de 20s e coloque aqui -->
 
 ## Como funciona
 
@@ -16,7 +18,11 @@ flowchart LR
     A[PDFs] --> B[Chunking] --> C[Embeddings] --> D[(ChromaDB)]
   end
   subgraph Consulta
-    E[Pergunta] --> F[Busca top-k] --> G[Prompt + contexto] --> H[LLM cita fontes]
+    E[Pergunta + histórico da sessão] --> F[Busca top-k]
+    F --> G{Evidência suficiente?}
+    G -->|sim| H[LLM responde com fontes locais]
+    G -->|não| I[Google Search grounding]
+    I --> J[Resposta com fontes oficiais]
   end
   D --> F
 ```
@@ -55,8 +61,8 @@ como `conab_boletim_safras_2026.pdf` e `usda_wasde_2026-11.pdf`.
 | Leitura de PDF | pypdf | Leve, sem dependências nativas |
 | Embeddings | sentence-transformers (multilíngue) | Gratuito, roda local, entende português |
 | Banco vetorial | ChromaDB | Persistente em disco, zero infraestrutura |
-| LLM | Gemini API ou Claude (Anthropic) | Permite testar com cota gratuita do Gemini |
-| Interface | Streamlit | Deploy grátis no Streamlit Cloud |
+| LLM | Gemini API ou Anthropic | Geração e busca online opcional com Gemini |
+| Interface | Streamlit | Interface de chat para uso local ou deploy compatível |
 
 ## Rodando localmente
 
@@ -95,16 +101,12 @@ Process` vale somente para a sessão atual. Se preferir não ativar o ambiente
 virtual, substitua `python` e `streamlit` pelos executáveis
 `.venv\Scripts\python.exe` e `.venv\Scripts\streamlit.exe`.
 
-### Chave gratuita para testar
+### Chave do provedor
 
-Crie uma chave no [Google AI Studio](https://aistudio.google.com/app/apikey) e
-cole-a em `GEMINI_API_KEY` no `.env` (não compartilhe nem publique esse arquivo).
-O projeto usa `gemini-3.5-flash-lite` por padrão; a disponibilidade e os limites
-gratuitos dependem do modelo e podem mudar. Consulte as [cotas e preços atuais](https://ai.google.dev/gemini-api/docs/pricing).
-No nível gratuito, os prompts e respostas podem ser usados pelo Google para
-melhorar produtos, então use apenas relatórios públicos. Para continuar com
-Anthropic, configure `LLM_PROVIDER=anthropic`, `LLM_MODEL` e
-`ANTHROPIC_API_KEY` no `.env`.
+Copie `.env.example` para `.env` e configure `GEMINI_API_KEY` para Gemini. O
+fallback de busca online requer `LLM_PROVIDER=gemini`; com Anthropic, o chat usa
+somente os documentos locais. Nunca publique chaves de API.
+
 
 Para a Conab, use a página [Acompanhamento da Safra Brasileira de Grãos](https://www.conab.gov.br/info-agro/safras/graos)
 e baixe os PDFs mensais desse boletim — ignore documentos institucionais e de
@@ -122,37 +124,32 @@ indexado. Para consultar o recorte, pergunte, por exemplo, “Forneça um relat�
 com todos os dados da soja para novembro de 2026”. Os botões de PDF e Excel só
 aparecem quando a pergunta pede explicitamente relatório, planilha ou exportação.
 
-## Avaliação
+O arquivo `data/raw/operaciones_informadas.csv` é um recorte de operações
+argentinas, não uma série completa de mercado. Os PDFs citados nos exemplos de
+avaliação são dados externos: precisam ser obtidos pelo usuário e não são
+versionados no Git. O script pessoal de coleta em `.local/`, quando existente,
+também é ignorado e não faz parte da aplicação publicada.
 
-`make eval` mede **hit rate@k** (a fonte esperada aparece nos k primeiros
-trechos?) e **MRR** (a que distância do início aparece a primeira fonte correta?).
-Cada execução salva perguntas, posições, fontes recuperadas e configuração em
-`evals/results/AAAA-MM-DD.json`. Edite `evals/dataset.jsonl` usando nomes de
-arquivo que existam no corpus indexado.
+## Memória da conversa e busca online
 
-Linha de base local da Fase 0 (14/11/2026):
+O histórico é mantido somente durante a sessão atual do Streamlit. Ele ajuda a
+entender perguntas de seguimento, como “e o milho?”, mas não é salvo em disco nem
+compartilhado com outras sessões. O botão **Limpar conversa** remove o histórico
+da sessão.
 
-| Configuração | Perguntas | Hit rate@4 | MRR |
-|---|---:|---:|---:|
-| chunk 800 / overlap 120; coleção local | 3 | 100% | 0,833 |
+Com `WEB_SEARCH_ENABLED=true`, o pipeline tenta responder primeiro com os
+documentos indexados. Se o modelo indicar evidência insuficiente, faz uma segunda
+chamada ao Gemini com Google Search grounding. As referências são extraídas dos
+metadados de grounding e só são mostradas se todos os domínios citados estiverem
+em `WEB_SEARCH_ALLOWED_DOMAINS`; respostas sem fontes oficiais verificáveis são
+descartadas. A integração segue a [documentação oficial de Grounding com Google
+Search](https://ai.google.dev/gemini-api/docs/google-search).
 
-Comparação da Fase 1 na mesma coleção e nas mesmas três perguntas:
-
-| Estado | Hit rate@4 | MRR | Resultado |
-|---|---:|---:|---|
-| Antes, texto original | 100% | 0,833 | `2026-11-14-before-cleaning.json` |
-| Depois, `CLEANING_ENABLED=true` | 66,7% | 0,667 | `2026-11-14-after-cleaning.json` |
-| Índice local restaurado com padrão `false` | 100% | 0,833 | `2026-11-14.json` |
-
-Com apenas três perguntas, a queda é um sinal para investigar, não prova geral de
-regressão. A limpeza permanece desativada por padrão; amplie o dataset de avaliação
-e investigue a recuperação do WASDE antes de ativá-la em produção.
-
-O dataset anterior apontava para `conab_levantamento.pdf` e `usda_wasde.pdf`,
-nomes ausentes em `data/raw/`, e marcou 0/3. Esse número não é comparável: as
-fontes esperadas foram corrigidas para os nomes reais, sem alterar o algoritmo
-de busca. A nova linha de base ainda tem apenas três perguntas e não garante
-qualidade geral; adicione casos reais antes de comparar mudanças de busca.
+A pergunta e o contexto recuperado são enviados ao Google quando o fallback é
+acionado. O grounding pode consumir cotas ou gerar cobranças conforme o projeto
+e o modelo; confira os [termos e preços atuais](https://ai.google.dev/gemini-api/docs/pricing).
+Use `WEB_SEARCH_ENABLED=false` para desativá-lo. A busca online é específica do
+Gemini; Anthropic continua disponível para consultas locais.
 
 ## Estrutura
 

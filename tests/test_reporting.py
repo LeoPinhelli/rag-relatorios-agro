@@ -3,7 +3,7 @@ from io import BytesIO
 from openpyxl import load_workbook
 
 from rag_agro.reporting import build_excel_report, build_pdf_report
-from rag_agro.schemas import Answer, RetrievedChunk
+from rag_agro.schemas import Answer, RetrievedChunk, WebSource
 
 
 def _answer() -> Answer:
@@ -35,3 +35,19 @@ def test_excel_exporta_resposta_e_trechos():
     assert workbook["Resposta"]["B4"].value == "A produção estimada foi elevada."
     assert workbook["Trechos usados"]["A2"].value == "boletim.pdf"
     assert workbook["Trechos usados"]["B2"].value == 12
+
+
+def test_relatorios_incluem_referencias_online():
+    answer = _answer()
+    answer.web_sources = [WebSource("Relatório Conab", "https://www.conab.gov.br/relatorio.pdf")]
+
+    workbook = load_workbook(
+        BytesIO(build_excel_report(answer, "Pergunta")), read_only=False
+    )
+    pdf = build_pdf_report(answer, "Pergunta")
+
+    assert workbook.sheetnames == ["Resposta", "Trechos usados", "Fontes online"]
+    assert workbook["Fontes online"]["B2"].hyperlink.target == (
+        "https://www.conab.gov.br/relatorio.pdf"
+    )
+    assert pdf.startswith(b"%PDF")

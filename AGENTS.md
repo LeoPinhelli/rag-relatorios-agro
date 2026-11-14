@@ -5,10 +5,10 @@ Instruções para agentes de IA (Claude Code, Codex, Cursor) que trabalham neste
 ## Visão geral
 
 RAG em Python que responde perguntas sobre relatórios públicos do mercado de grãos
-(Conab, USDA), citando arquivo e página. Duas fases:
+(Conab, USDA), citando arquivo/página ou arquivo/registro. Duas fases:
 
-1. **Indexação** (`make ingest`): PDF → páginas → chunks → embeddings → ChromaDB.
-2. **Consulta** (`make app`): pergunta → busca top-k → prompt com contexto → Claude responde.
+1. **Indexação** (`make ingest`): PDF/CSV → páginas/registros → chunks → embeddings → ChromaDB.
+2. **Consulta** (`make app`): pergunta → busca top-k → contexto → Gemini ou Anthropic responde.
 
 ## Mapa do código
 
@@ -20,7 +20,7 @@ RAG em Python que responde perguntas sobre relatórios públicos do mercado de g
 | `src/rag_agro/cleaning.py` | Limpa páginas e deriva metadados do nome do arquivo | — |
 | `src/rag_agro/chunking.py` | Divide texto com overlap; IDs determinísticos e metadados | schemas |
 | `src/rag_agro/vectorstore.py` | Coleção Chroma, `add_chunks`, `search` | chromadb, sentence-transformers |
-| `src/rag_agro/generator.py` | `SYSTEM_PROMPT`, `build_context`, `generate` | anthropic |
+| `src/rag_agro/generator.py` | `SYSTEM_PROMPT`, `build_context`, `generate` | google-genai, anthropic |
 | `src/rag_agro/pipeline.py` | `ask(question)` → `Answer` | vectorstore, generator |
 | `src/rag_agro/ingest.py` | CLI: `python -m rag_agro.ingest <pasta>` | loaders, cleaning, chunking, vectorstore |
 | `app/streamlit_app.py` | Interface de chat | pipeline |
@@ -42,8 +42,9 @@ make lint      # ruff
 ## Configuração
 
 Tudo em `.env` (modelo em `.env.example`). Nunca coloque valores fixos no código.
-Variáveis: `ANTHROPIC_API_KEY`, `LLM_MODEL`, `EMBEDDING_MODEL`, `CHROMA_DIR`,
-`COLLECTION_NAME`, `CHUNK_SIZE`, `CHUNK_OVERLAP`, `TOP_K`.
+Variáveis: `LLM_PROVIDER`, `LLM_MODEL`, `GEMINI_API_KEY`, `ANTHROPIC_API_KEY`,
+`EMBEDDING_MODEL`, `CHROMA_DIR`, `COLLECTION_NAME`, `CHUNK_SIZE`,
+`CHUNK_OVERLAP`, `TOP_K`, `WEB_SEARCH_ENABLED`, `WEB_SEARCH_ALLOWED_DOMAINS`.
 `CLEANING_ENABLED` controla a limpeza textual (padrão seguro: `false`).
 
 ## Regras obrigatórias

@@ -59,6 +59,20 @@ def build_excel_report(answer: Answer, question: str) -> bytes:
         row[3].alignment = Alignment(vertical="top", wrap_text=True)
     for column, width in {"A": 42, "B": 12, "C": 16, "D": 100}.items():
         evidence.column_dimensions[column].width = width
+    if answer.web_sources:
+        web_sources = workbook.create_sheet("Fontes online")
+        web_sources.append(["Fonte", "URL", "Consultado em"])
+        for cell in web_sources[1]:
+            cell.font = Font(bold=True, color="FFFFFF")
+            cell.fill = PatternFill("solid", fgColor="356859")
+        for source in answer.web_sources:
+            web_sources.append(
+                [_safe_cell(source.title), _safe_cell(source.url), source.accessed_at]
+            )
+            web_sources.cell(web_sources.max_row, 2).hyperlink = source.url
+        web_sources.column_dimensions["A"].width = 48
+        web_sources.column_dimensions["B"].width = 100
+        web_sources.column_dimensions["C"].width = 24
     output = BytesIO()
     workbook.save(output)
     return output.getvalue()
@@ -103,5 +117,18 @@ def build_pdf_report(answer: Answer, question: str) -> bytes:
                 Spacer(1, 3 * mm),
             ]
         )
+    if answer.web_sources:
+        story.extend(
+            [Spacer(1, 4 * mm), Paragraph("Fontes online", styles["Heading2"])]
+        )
+        for source in answer.web_sources:
+            safe_url = escape(source.url, {'"': "&quot;"})
+            story.append(
+                Paragraph(
+                    f'<link href="{safe_url}">{escape(source.title)}</link> — '
+                    f"{escape(source.url)} (consultado em {escape(source.accessed_at)})",
+                    body,
+                )
+            )
     document.build(story)
     return output.getvalue()

@@ -22,6 +22,17 @@ class Settings:
     chunk_size: int = int(os.getenv("CHUNK_SIZE", "800"))
     chunk_overlap: int = int(os.getenv("CHUNK_OVERLAP", "120"))
     top_k: int = int(os.getenv("TOP_K", "4"))
+    web_search_enabled: bool = os.getenv("WEB_SEARCH_ENABLED", "true").lower() in {
+        "1", "true", "yes", "on"
+    }
+    web_search_allowed_domains: tuple[str, ...] = tuple(
+        domain.strip().lower()
+        for domain in os.getenv(
+            "WEB_SEARCH_ALLOWED_DOMAINS",
+            "gov.br,usda.gov,nal.usda.gov,argentina.gob.ar,magyp.gob.ar,ibge.gov.br",
+        ).split(",")
+        if domain.strip()
+    )
     cleaning_enabled: bool = os.getenv("CLEANING_ENABLED", "false").lower() in {
         "1", "true", "yes", "on"
     }

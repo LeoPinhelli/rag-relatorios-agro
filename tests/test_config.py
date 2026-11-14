@@ -8,10 +8,14 @@ def test_settings_le_configuracoes_do_ambiente(monkeypatch):
     monkeypatch.setenv("LLM_MODEL", "gemini-test-model")
     monkeypatch.setenv("CHUNK_SIZE", "1234")
     monkeypatch.setenv("CLEANING_ENABLED", "true")
+    monkeypatch.setenv("WEB_SEARCH_ENABLED", "false")
+    monkeypatch.setenv("WEB_SEARCH_ALLOWED_DOMAINS", "example.org,gov.br")
     try:
         reloaded = importlib.reload(config)
         assert reloaded.settings.llm_model == "gemini-test-model"
         assert reloaded.settings.chunk_size == 1234
         assert reloaded.settings.cleaning_enabled is True
+        assert reloaded.settings.web_search_enabled is False
+        assert reloaded.settings.web_search_allowed_domains == ("example.org", "gov.br")
     finally:
         config.settings = original_settings

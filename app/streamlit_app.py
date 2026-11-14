@@ -4,25 +4,40 @@ from datetime import datetime
 
 import streamlit as st
 
-from rag_agro.pipeline import ask
+from rag_agro.pipeline import ask_with_history
 from rag_agro.reporting import build_excel_report, build_pdf_report
 
 st.set_page_config(page_title="RAG Agro", page_icon="🌾")
 st.title("🌾 Pergunte aos relatórios de grãos")
-st.caption("Respostas baseadas em relatórios públicos, com fonte citada.")
+st.caption(
+    "Respostas baseadas nos arquivos indexados; se faltar evidência, busca opcional "
+    "em fontes oficiais online."
+)
 
 if "history" not in st.session_state:
     st.session_state.history = []
+
+if st.sidebar.button("Limpar conversa"):
+    st.session_state.history = []
+    st.rerun()
 
 for role, content in st.session_state.history:
     st.chat_message(role).markdown(content)
 
 if question := st.chat_input("Ex.: Qual a estimativa de safra de soja?"):
     st.chat_message("user").markdown(question)
-    with st.spinner("Buscando nos relatórios..."):
-        answer = ask(question)
+    with st.spinner("Veriicando..."):
+        answer = ask_with_history(question, st.session_state.history)
     with st.chat_message("assistant"):
-        st.markdown(answer.text)
+        answer_markdown = answer.text
+        if answer.web_sources:
+            references = [
+                f"- [Fonte online {index}: {source.title.replace('[', '(').replace(']', ')')}]"
+                f"({source.url}) — consultado em {source.accessed_at}"
+                for index, source in enumerate(answer.web_sources, start=1)
+            ]
+            answer_markdown += "\n\n**Fontes online**\n" + "\n".join(references)
+        st.markdown(answer_markdown)
         if answer.report_requested:
             file_name = f"rag_agro_{datetime.now():%Y%m%d_%H%M%S}"
             pdf_col, excel_col = st.columns(2)
@@ -51,4 +66,4 @@ if question := st.chat_input("Ex.: Qual a estimativa de safra de soja?"):
                 )
                 st.markdown(f"**{c.source}, {reference}** · similaridade {c.score}")
                 st.caption(c.text[:400] + "...")
-    st.session_state.history += [("user", question), ("assistant", answer.text)]
+    st.session_state.history += [("user", question), ("assistant", answer_markdown)]

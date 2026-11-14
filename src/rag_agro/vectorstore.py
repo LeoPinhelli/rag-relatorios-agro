@@ -10,7 +10,7 @@ from rag_agro.config import settings
 from rag_agro.schemas import Chunk, RetrievedChunk
 
 
-def get_collection():
+def get_collection() -> chromadb.Collection:
     client = chromadb.PersistentClient(path=settings.chroma_dir)
     embedder = embedding_functions.SentenceTransformerEmbeddingFunction(
         model_name=settings.embedding_model
